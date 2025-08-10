@@ -200,7 +200,17 @@ use Illuminate\Support\Facades\Storage;
                         
                         {{-- Dynamic pricing from database - all available prices --}}
                         @if($item->pricesPerPerson && $item->pricesPerPerson->count() > 0)
-                            @foreach($item->pricesPerPerson->where('price_per_person', '>', 0)->sortBy('eventTemplateQty.qty', SORT_REGULAR, true) as $price)
+                            @php
+                                // Zgrupuj po wariancie qty i wybierz minimalną cenę per qty, aby nie dublować linii
+                                $pricesGrouped = $item->pricesPerPerson
+                                    ->where('price_per_person', '>', 0)
+                                    ->groupBy('event_template_qty_id')
+                                    ->map(function($group){
+                                        return $group->sortBy('price_per_person')->first();
+                                    })
+                                    ->sortByDesc(function($p){ return optional($p->eventTemplateQty)->qty; });
+                            @endphp
+                            @foreach($pricesGrouped as $price)
                                 <div class="people_price">
                                     <div class="small2">
                                         <div class="price">{{ ceil($price->price_per_person / 5) * 5 }} PLN</div>

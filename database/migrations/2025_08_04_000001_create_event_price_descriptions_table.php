@@ -7,13 +7,15 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up()
     {
-        Schema::create('event_price_descriptions', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->text('description'); // HTML-formatted text
-            $table->timestamps();
-            // Usunięto klucz obcy event_id, pole name jest tekstowe
-        });
+        if (!Schema::hasTable('event_price_descriptions')) {
+            Schema::create('event_price_descriptions', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->text('description'); // HTML-formatted text
+                $table->timestamps();
+                // Usunięto klucz obcy event_id, pole name jest tekstowe
+            });
+        }
     }
 
     public function down()

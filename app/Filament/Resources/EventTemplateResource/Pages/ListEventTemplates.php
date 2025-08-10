@@ -6,6 +6,7 @@ use App\Filament\Resources\EventTemplateResource;
 use App\Models\EventTemplate;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\Auth;
 use Filament\Tables\Actions\Action as TableAction;
 
 class ListEventTemplates extends ListRecords
@@ -24,22 +25,13 @@ class ListEventTemplates extends ListRecords
                 ->color('success')
                 ->requiresConfirmation()
                 ->action(function () {
-                    \Illuminate\Support\Facades\Log::info('Rozpoczęto przeliczanie cen dla wszystkich szablonów');
-                    $templates = \App\Models\EventTemplate::all();
-                    \Illuminate\Support\Facades\Log::info('Znaleziono ' . $templates->count() . ' szablonów');
-                    $calculator = new \App\Services\EventTemplatePriceCalculator();
-                    foreach ($templates as $template) {
-                        \Illuminate\Support\Facades\Log::info('Przeliczanie cen dla szablonu: ' . $template->id . ' (' . $template->name . ')');
-                        try {
-                            $calculator->calculateAndSave($template);
-                            \Illuminate\Support\Facades\Log::info('Zakończono przeliczanie dla szablonu: ' . $template->id);
-                        } catch (\Exception $e) {
-                            \Illuminate\Support\Facades\Log::error('Błąd przy przeliczaniu szablonu ' . $template->id . ': ' . $e->getMessage());
-                        }
-                    }
-                    \Illuminate\Support\Facades\Log::info('Zakończono przeliczanie cen dla wszystkich szablonów');
+                    // Uruchom job w tle, aby nie blokować UI (po odpowiedzi)
+                    $userId = (int) (Auth::id() ?? 0);
+                    \App\Jobs\RecalculateAllEventTemplatePricesJob::dispatch($userId)->afterResponse();
+
                     \Filament\Notifications\Notification::make()
-                        ->title('Ceny zostały przeliczone dla wszystkich szablonów!')
+                        ->title('Przeliczanie cen uruchomione')
+                        ->body('Zadanie działa w tle. Po zakończeniu dostaniesz powiadomienie z podsumowaniem.')
                         ->success()
                         ->send();
                 }),

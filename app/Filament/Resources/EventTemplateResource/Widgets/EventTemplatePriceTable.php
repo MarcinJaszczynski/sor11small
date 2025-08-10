@@ -717,13 +717,13 @@ class EventTemplatePriceTable extends Widget
                 $plnData = $currencyData['PLN'] ?? null;
                 if (!$plnData) continue;
 
-                // Znajdź istniejący rekord lub utwórz nowy
-                $priceRecord = EventTemplatePricePerPerson::where([
+                // Klucze unikalnej kombinacji
+                $keys = [
                     'event_template_id' => $this->record->id,
                     'event_template_qty_id' => $this->getQtyId($qty),
                     'currency_id' => $plnCurrency->id,
-                    'start_place_id' => $this->startPlaceId
-                ])->first();
+                    'start_place_id' => $this->startPlaceId,
+                ];
 
                 $priceData = [
                     'price_base' => $this->ceilTo5($plnData['total'] ?? 0),
@@ -736,20 +736,13 @@ class EventTemplatePriceTable extends Widget
                     'updated_at' => now()
                 ];
 
-                if ($priceRecord) {
-                    // MODYFIKUJ istniejący rekord
-                    $priceRecord->update($priceData);
+                // Aktualizuj istniejący lub utwórz nowy (bez duplikatów)
+                $existing = EventTemplatePricePerPerson::where($keys)->first();
+                $record = EventTemplatePricePerPerson::updateOrCreate($keys, $priceData);
+                if ($existing) {
                     $updatedCount++;
                     \Illuminate\Support\Facades\Log::info("Updated price for qty {$qty}");
                 } else {
-                    // UTWÓRZ nowy rekord
-                    EventTemplatePricePerPerson::create(array_merge($priceData, [
-                        'event_template_id' => $this->record->id,
-                        'event_template_qty_id' => $this->getQtyId($qty),
-                        'currency_id' => $plnCurrency->id,
-                        'start_place_id' => $this->startPlaceId,
-                        'created_at' => now()
-                    ]));
                     $createdCount++;
                     \Illuminate\Support\Facades\Log::info("Created price for qty {$qty}");
                 }
