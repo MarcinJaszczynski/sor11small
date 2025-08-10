@@ -37,14 +37,9 @@ class MediaResource extends Resource
                     ->disk(fn($record) => $record->disk)
                     ->height(64)
                     ->width(64),
-                Tables\Columns\TextColumn::make('filename')->label('Nazwa')->searchable(),
-                Tables\Columns\TextColumn::make('extension')->label('Ext')->sortable(),
-                Tables\Columns\TextColumn::make('mime')->label('MIME')->toggleable(),
-                Tables\Columns\TextColumn::make('size')->label('Rozmiar (B)')->sortable(),
-                Tables\Columns\TextColumn::make('width')->label('Szer.')->sortable(),
-                Tables\Columns\TextColumn::make('height')->label('Wys.')->sortable(),
-                Tables\Columns\TextColumn::make('disk')->label('Dysk')->sortable()->toggleable(),
-                Tables\Columns\TextColumn::make('path')->label('Ścieżka')->copyable()->wrap(),
+                Tables\Columns\TextColumn::make('filename')
+                    ->label('Nazwa')
+                    ->searchable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('disk')->options([
