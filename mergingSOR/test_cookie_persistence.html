@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Cookie Persistence</title>
+</head>
+<body>
+    <h1>Test Cookie Persistence</h1>
+    
+    <div>
+        <label>Current start_place_id cookie value:</label>
+        <span id="cookieValue">Loading...</span>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <label>Set new cookie value:</label>
+        <input type="text" id="newValue" placeholder="Enter place ID">
+        <button onclick="updateCookie()">Update Cookie</button>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="checkCookie()">Refresh Cookie Value</button>
+        <button onclick="clearCookie()">Clear Cookie</button>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h3>Test Links:</h3>
+        <a href="/packages" target="_blank">Open Packages Page</a> |
+        <a href="/contact" target="_blank">Open Contact Page</a>
+    </div>
+
+    <script>
+        function setCookie(name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days*24*60*60*1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+
+        function checkCookie() {
+            var value = getCookie('start_place_id');
+            document.getElementById('cookieValue').textContent = value || 'Not set';
+        }
+
+        function updateCookie() {
+            var newValue = document.getElementById('newValue').value;
+            if (newValue) {
+                setCookie('start_place_id', newValue, 30);
+                checkCookie();
+                document.getElementById('newValue').value = '';
+                alert('Cookie updated to: ' + newValue);
+            }
+        }
+
+        function clearCookie() {
+            setCookie('start_place_id', '', -1);
+            checkCookie();
+            alert('Cookie cleared');
+        }
+
+        // Check cookie on page load
+        checkCookie();
+        
+        // Auto-refresh every 2 seconds
+        setInterval(checkCookie, 2000);
+    </script>
+</body>
+</html>

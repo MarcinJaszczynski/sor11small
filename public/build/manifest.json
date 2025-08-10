@@ -1,0 +1,25 @@
+{
+  "_sortable.CIoR_KH9.js": {
+    "file": "assets/js/sortable.CIoR_KH9.js",
+    "name": "sortable"
+  },
+  "_vendor.t--hEgTQ.js": {
+    "file": "assets/js/vendor.t--hEgTQ.js",
+    "name": "vendor"
+  },
+  "resources/css/app.css": {
+    "file": "assets/css/app.B9e7bJbn.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/js/app.BI0FaDAQ.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "imports": [
+      "_vendor.t--hEgTQ.js",
+      "_sortable.CIoR_KH9.js"
+    ]
+  }
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cookie Test - Final</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-step { margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; }
+        #results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Final Cookie Test - Start Place ID</h1>
+    
+    <div class="test-step">
+        <h3>Step 1: Clear all cookies and test default</h3>
+        <button onclick="clearCookies()">Clear All Cookies</button>
+        <button onclick="testStep1()">Test Default (Should be empty)</button>
+    </div>
+
+    <div class="test-step">
+        <h3>Step 2: Set cookie to Kraków (ID: 2)</h3>
+        <button onclick="testStep2()">Set Kraków (ID: 2)</button>
+    </div>
+
+    <div class="test-step">
+        <h3>Step 3: Set cookie to Wrocław (ID: 3)</h3>
+        <button onclick="testStep3()">Set Wrocław (ID: 3)</button>
+    </div>
+
+    <div class="test-step">
+        <h3>Step 4: Read current cookie</h3>
+        <button onclick="testStep4()">Read Current Cookie</button>
+    </div>
+
+    <div class="test-step">
+        <h3>Step 5: Test navigation simulation</h3>
+        <button onclick="testStep5()">Simulate Navigation Test</button>
+        <p><small>This will set a cookie, "navigate" (reload page), and check if cookie persists</small></p>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        function log(message, isError = false) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.innerHTML = new Date().toLocaleTimeString() + ': ' + message;
+            div.className = isError ? 'error' : 'success';
+            results.appendChild(div);
+        }
+
+        // Helper: set cookie (same as in your app)
+        function setCookie(name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days*24*60*60*1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+
+        // Helper: get cookie (same as in your app)
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+
+        // Save start_place_id to cookie (same as in your app)
+        function saveStartPlaceId(val) {
+            setCookie('start_place_id', val, 30);
+            log('Saved start_place_id to cookie: ' + val);
+        }
+
+        function clearCookies() {
+            document.cookie = "start_place_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            log('Cleared all cookies');
+        }
+
+        function testStep1() {
+            const cookie = getCookie('start_place_id');
+            if (cookie === null) {
+                log('✓ GOOD: No cookie found (expected)');
+            } else {
+                log('✗ ERROR: Found cookie: ' + cookie + ' (should be empty)', true);
+            }
+        }
+
+        function testStep2() {
+            saveStartPlaceId('2');
+            const cookie = getCookie('start_place_id');
+            if (cookie === '2') {
+                log('✓ GOOD: Cookie set to Kraków (2)');
+            } else {
+                log('✗ ERROR: Cookie is: ' + cookie + ' (should be 2)', true);
+            }
+        }
+
+        function testStep3() {
+            saveStartPlaceId('3');
+            const cookie = getCookie('start_place_id');
+            if (cookie === '3') {
+                log('✓ GOOD: Cookie set to Wrocław (3)');
+            } else {
+                log('✗ ERROR: Cookie is: ' + cookie + ' (should be 3)', true);
+            }
+        }
+
+        function testStep4() {
+            const cookie = getCookie('start_place_id');
+            log('Current start_place_id cookie: ' + (cookie || 'null'));
+        }
+
+        function testStep5() {
+            // Set cookie to a test value
+            saveStartPlaceId('5');
+            log('Set cookie to 5, now simulating navigation...');
+            
+            // Simulate navigation by checking cookie after a delay
+            setTimeout(function() {
+                const cookie = getCookie('start_place_id');
+                if (cookie === '5') {
+                    log('✓ EXCELLENT: Cookie persisted after navigation simulation!');
+                    log('NOW TEST THE REAL APP: Go to /packages → Select region → Go to /contact → Return to /packages');
+                } else {
+                    log('✗ ERROR: Cookie lost during navigation. Got: ' + cookie, true);
+                }
+            }, 1000);
+        }
+
+        // Auto-run on page load
+        window.onload = function() {
+            log('Cookie test page loaded. Cookie domain: ' + location.hostname);
+            testStep4(); // Show current cookie state
+        };
+    </script>
+</body>
+</html>

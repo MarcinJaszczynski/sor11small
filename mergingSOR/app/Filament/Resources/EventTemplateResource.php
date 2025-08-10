@@ -1,0 +1,359 @@
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\EventTemplateResource\Pages;
+use App\Models\EventTemplate;
+use App\Models\HotelRoom;
+use App\Models\EventPriceDescription;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Support\Str;
+use Filament\Forms\Components\View as ViewComponent;
+
+/**
+ * Resource Filament dla modelu EventTemplate.
+ * Definiuje formularz, tabelę, uprawnienia i strony powiązane z szablonami wydarzeń.
+ */
+class EventTemplateResource extends Resource
+{
+    protected static ?string $model = EventTemplate::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationGroup = 'Szablony';
+    protected static ?string $navigationLabel = 'Szablony imprez';
+    protected static ?int $navigationSort = 10;
+
+    /**
+     * Definicja formularza do edycji/dodawania szablonu wydarzenia
+     */
+    public static function form(Form $form): Form
+    {
+        return $form->schema([
+            Forms\Components\TextInput::make('name')
+                ->label('Nazwa')
+                ->required()
+                ->live(onBlur: true)
+                ->afterStateUpdated(
+                    fn($state, callable $set) =>
+                    $set('slug', Str::slug($state))
+                ),
+            Forms\Components\Select::make('eventTypes')
+                ->label('Typy wydarzenia')
+                ->multiple()
+                ->relationship('eventTypes', 'name')
+                ->preload()
+                ->searchable()
+                ->columnSpanFull(),
+            Forms\Components\Select::make('transportTypes')
+                ->label('Rodzaje transportu')
+                ->multiple()
+                ->relationship('transportTypes', 'name')
+                ->preload()
+                ->searchable()
+                ->columnSpanFull(),
+            Forms\Components\TextInput::make('subtitle')
+                ->label('Podtytuł')
+                ->maxLength(255),
+            Forms\Components\TextInput::make('slug')
+                ->label('Slug')
+                ->required(),
+            Forms\Components\Toggle::make('is_active')
+                ->label('Aktywny')
+                ->default(true)
+                ->helperText('Tylko aktywne szablony są widoczne w systemie'),
+            Forms\Components\TextInput::make('duration_days')
+                ->label('Długość imprezy (dni)')
+                ->numeric()
+                ->default(1)
+                ->required()
+                ->extraInputAttributes(['step' => 1, 'min' => 1]),
+            Forms\Components\Select::make('markup_id')
+                ->label('Narzut')
+                ->options(fn() => \App\Models\Markup::pluck('name', 'id'))
+                ->searchable()
+                ->nullable()
+                ->default(function () {
+                    $defaultMarkup = \App\Models\Markup::where('is_default', true)->first();
+                    return $defaultMarkup?->id;
+                })
+                ->helperText('Jeśli nie wybierzesz, zostanie użyty domyślny narzut.'),
+            Forms\Components\Select::make('event_price_description_id')
+                ->label('Opis ceny imprezy')
+                ->options(fn() => \App\Models\EventPriceDescription::pluck('name', 'id'))
+                ->searchable()
+                ->nullable()
+                ->helperText('Wybierz opis ceny imprezy. Możesz zostawić puste.')
+                ->live(),
+            Forms\Components\Section::make('Zdjęcia i galeria')
+                ->description('Materiały wizualne szablonu imprezy')
+                ->icon('heroicon-o-photo')
+                ->collapsible()
+                ->schema([
+                    Forms\Components\FileUpload::make('featured_image')
+                        ->label('Zdjęcie wyróżniające')
+                        ->image()
+                        ->disk('public')
+                        ->directory('event-templates')
+                        ->visibility('public')
+                        ->maxSize(5120)
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+                        ->preserveFilenames()
+                        ->nullable()
+                        ->default(fn($record) => is_string($record?->featured_image) ? $record->featured_image : null),
+                    Forms\Components\FileUpload::make('gallery')
+                        ->label('Zdjęcia do galerii')
+                        ->hint('Możesz dodać do 10 zdjęć uzupełniających. Ułatwiają prezentację imprezy.')
+                        ->image()
+                        ->multiple()
+                        ->disk('public')
+                        ->directory('event-templates/gallery')
+                        ->visibility('public')
+                        ->downloadable()
+                        ->previewable()
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+                        ->maxSize(5120)
+                        ->reorderable()
+                        ->maxFiles(10)
+                        ->imageEditor()
+                        ->imageEditorAspectRatios(['16:9','4:3','1:1'])
+                        ->panelLayout('grid')
+                        ->uploadingMessage('Przesyłanie zdjęć...')
+                        ->removeUploadedFileButtonPosition('right')
+                        ->uploadButtonPosition('left')
+                        ->uploadProgressIndicatorPosition('left')
+                        ->preserveFilenames()
+                        ->live()
+                        ->default(fn($record) => $record?->gallery ?? []),
+                ]),
+
+            // Klasyczny układ: osobne pole "Opis imprezy" (event_description), a poniżej sekcja "Opis i uwagi"
+            Forms\Components\RichEditor::make('event_description')
+                ->label('Opis imprezy')
+                ->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList', 'link', 'undo', 'redo'])
+                ->columnSpanFull(),
+            Forms\Components\Section::make('Opis i uwagi')
+                ->description('Dodatkowe informacje dla biura i uwagi do szablonu')
+                ->icon('heroicon-o-clipboard-document-list')
+                ->collapsible()
+                ->schema([
+                    Forms\Components\RichEditor::make('office_description')
+                        ->label('Opis dla biura')
+                        ->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList', 'link', 'undo', 'redo'])
+                        ->columnSpanFull(),
+                    Forms\Components\Textarea::make('notes')
+                        ->label('Uwagi')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                ]),
+
+            Forms\Components\Section::make('Tagi i kategoryzacja')
+                ->description('Klasyfikacja i wyszukiwanie')
+                ->icon('heroicon-o-tag')
+                ->collapsible()
+                ->schema([
+                    Forms\Components\Select::make('tags')
+                        ->label('Tagi')
+                        ->multiple()
+                        ->relationship('tags', 'name')
+                        ->preload()
+                        ->searchable()
+                        ->columnSpanFull(),
+                ]),
+            Forms\Components\CheckboxList::make('taxes')
+                ->label('Podatki')
+                ->helperText('Wybierz podatki, które mają być naliczane dla tej imprezy')
+                ->relationship('taxes', 'name')
+                ->columns(2),
+            Forms\Components\Textarea::make('short_description')
+                ->label('Krótki opis')
+                ->rows(3)
+                ->columnSpanFull(),
+            Forms\Components\RichEditor::make('description')
+                ->label('Opis')
+                ->disableToolbarButtons(['codeBlock'])
+                ->columnSpanFull(),
+            Forms\Components\Section::make('Opcje wyświetlania programu')
+                ->description('Ustawienia wizualne dla strony programu wycieczki')
+                ->icon('heroicon-o-eye')
+                ->collapsible()
+                ->schema([
+                    Forms\Components\Toggle::make('show_title_style')
+                        ->label('Pokazuj styl tytułu')
+                        ->helperText('Czy pokazywać stylizowany tytuł w programie wycieczki')
+                        ->default(true),
+                    Forms\Components\Toggle::make('show_description')
+                        ->label('Pokazuj opis')
+                        ->helperText('Czy pokazywać opis w programie wycieczki')
+                        ->default(true),
+                ])
+                ->columns(2),
+            Forms\Components\Section::make('SEO')
+                ->schema([
+                    Forms\Components\TextInput::make('seo_title')
+                        ->label('Tytuł SEO')
+                        ->maxLength(70)
+                        ->helperText('Tytuł strony widoczny w Google (max 70 znaków)'),
+                    Forms\Components\Textarea::make('seo_description')
+                        ->label('Opis SEO')
+                        ->maxLength(350)
+                        ->rows(2)
+                        ->helperText('Opis strony widoczny w Google (max 350 znaków)'),
+                    Forms\Components\TextInput::make('seo_keywords')
+                        ->label('Słowa kluczowe')
+                        ->helperText('Oddziel przecinkami'),
+                ]),
+        ]);
+    }
+
+    /**
+     * Definicja tabeli szablonów wydarzeń w panelu
+     */
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Nazwa')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('subtitle')
+                    ->label('Podtytuł')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('slug')
+                    ->label('Slug')
+                    ->searchable(),
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Status')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger')
+                    ->sortable()
+                    ->action(function ($record) {
+                        $record->update(['is_active' => !$record->is_active]);
+                    })
+                    ->tooltip(fn($record) => $record->is_active ? 'Kliknij, aby dezaktywować' : 'Kliknij, aby aktywować'),
+                Tables\Columns\TextColumn::make('duration_days')
+                    ->label('Długość imprezy (dni)')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('startPlace.name')
+                    ->label('Miejsce startowe')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('Nie ustawiono')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('available_start_places')
+                    ->label('Dostępne miejsca wyjazdów')
+                    ->getStateUsing(function ($record) {
+                        return $record->startingPlaceAvailabilities()
+                            ->where('available', true)
+                            ->with('startPlace')
+                            ->get()
+                            ->pluck('startPlace.name')
+                            ->filter()
+                            ->join(', ');
+                    })
+                    ->placeholder('Brak dostępnych')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('markup.name')
+                    ->label('Narzut')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('Domyślny')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Utworzono')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->label('Zaktualizowano')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Tables\Filters\Filter::make('is_active')
+                    ->label('Tylko aktywne')
+                    ->query(fn($query) => $query->where('is_active', true))
+                    ->default(),
+                Tables\Filters\TrashedFilter::make()
+                    ->label('Kosz'),
+            ])
+            ->actions([
+                Tables\Actions\Action::make('create_event')
+                    ->label('Utwórz imprezę')
+                    ->icon('heroicon-o-plus-circle')
+                    ->color('success')
+                    ->url(fn($record) => route('filament.admin.resources.events.create', ['template' => $record->id]))
+                    ->openUrlInNewTab(),
+                Tables\Actions\ViewAction::make()
+                    ->label('Podgląd'),
+                Tables\Actions\EditAction::make()
+                    ->label('Edytuj'),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->label('Usuń zaznaczone'),
+                    Tables\Actions\ForceDeleteBulkAction::make()
+                        ->label('Usuń na stałe'),
+                    Tables\Actions\RestoreBulkAction::make()
+                        ->label('Przywróć'),
+                ]),
+            ])
+            ->defaultSort('name', 'asc');
+    }
+
+    /**
+     * Relacje powiązane z szablonem wydarzenia (jeśli są)
+     */
+    public static function getRelations(): array
+    {
+        return [];
+    }
+
+    /**
+     * Rejestracja stron powiązanych z tym resource (zgodnie z Filament 3)
+     */
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListEventTemplates::route('/'),
+            'create' => Pages\CreateEventTemplate::route('/create'),
+            'edit' => Pages\EditEventTemplate::route('/{record}/edit'),
+            'edit-program' => Pages\EditEventTemplateProgram::route('/{record}/program'),
+            'calculation' => Pages\EventTemplateCalculation::route('/{record}/calculation'),
+            'transport' => Pages\EventTemplateTransport::route('/{record}/transport'),
+        ];
+    }
+
+    /**
+     * Uprawnienia do widoczności resource w panelu
+     */
+    public static function canViewAny(): bool
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if ($user && $user->roles && $user->roles->contains('name', 'admin')) {
+            return true;
+        }
+        if ($user && $user->roles && $user->roles->flatMap->permissions->contains('name', 'view eventtemplate')) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Zwraca true dla każdego rekordu, aby umożliwić dostęp do niestandardowych stron resource
+     */
+    public static function canView($record): bool
+    {
+        return true;
+    }
+}
