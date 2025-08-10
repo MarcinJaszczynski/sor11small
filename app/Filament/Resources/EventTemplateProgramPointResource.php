@@ -113,6 +113,9 @@ class EventTemplateProgramPointResource extends Resource
                             ->disk('public')
                             ->directory('program-points')
                             ->visibility('public')
+                            ->previewable()
+                            ->downloadable()
+                            ->live()
                             ->maxSize(5120)
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
                             ->preserveFilenames()
@@ -191,7 +194,8 @@ class EventTemplateProgramPointResource extends Resource
                                     if ($media) {
                                         $set('featured_image', $media->path);
                                     }
-                                }),
+                                })
+                                ->successNotificationTitle('Zdjęcie wyróżniające ustawione'),
                         ]),
 
                         Forms\Components\FileUpload::make('gallery_images')
@@ -295,7 +299,8 @@ class EventTemplateProgramPointResource extends Resource
                                     if (!is_array($current)) { $current = []; }
                                     $new = array_values(array_unique(array_merge($current, $paths)));
                                     $set('gallery_images', $new);
-                                }),
+                                })
+                                ->successNotificationTitle('Zdjęcia dodane do galerii'),
                         ]),
                     ]),
 

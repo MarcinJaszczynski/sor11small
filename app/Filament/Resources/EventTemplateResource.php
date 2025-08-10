@@ -156,6 +156,9 @@ class EventTemplateResource extends Resource
                                 ->disk('public')
                                 ->directory('event-templates')
                                 ->visibility('public')
+                                ->previewable()
+                                ->downloadable()
+                                ->live()
                                 ->maxSize(5120)
                                 ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
                                 ->preserveFilenames()
@@ -237,7 +240,8 @@ class EventTemplateResource extends Resource
                                         if ($media) {
                                             $set('featured_image', $media->path);
                                         }
-                                    }),
+                                    })
+                                    ->successNotificationTitle('Zdjęcie wyróżniające ustawione'),
                             ])->columnSpan(1),
                             Forms\Components\FileUpload::make('gallery')
                                 ->label('Zdjęcia do galerii')
@@ -340,7 +344,8 @@ class EventTemplateResource extends Resource
                                         if (!is_array($current)) { $current = []; }
                                         $new = array_values(array_unique(array_merge($current, $paths)));
                                         $set('gallery', $new);
-                                    }),
+                                    })
+                                    ->successNotificationTitle('Zdjęcia dodane do galerii'),
                             ])->columnSpan(1),
                         ]),
                 ]),
