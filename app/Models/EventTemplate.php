@@ -31,6 +31,14 @@ class EventTemplate extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Casty atrybutów.
+     */
+    protected $casts = [
+        'gallery' => 'array',
+        'is_active' => 'boolean',
+    ];
+
 
     /**
      * Mutator: zawsze zapisuj featured_image jako string (pierwszy element tablicy lub null)
@@ -42,6 +50,51 @@ class EventTemplate extends Model
         } else {
             $this->attributes['featured_image'] = $value;
         }
+    }
+
+    /**
+     * Accessor: zwracaj pełną ścieżkę względną względem dysku dla featured_image,
+     * jeśli w bazie zapisany jest sam basename.
+     */
+    public function getFeaturedImageAttribute($value)
+    {
+        if (empty($value)) {
+            return $value;
+        }
+
+        // Jeśli już jest ścieżka z katalogiem, zostaw bez zmian
+        if (is_string($value) && str_contains($value, '/')) {
+            return $value;
+        }
+
+        // W przeciwnym razie dołóż domyślny katalog dla miniatur
+        return 'event-templates/' . ltrim((string) $value, '/');
+    }
+
+    /**
+     * Accessor: zwracaj tablicę ścieżek dla galerii i dopilnuj, by elementy
+     * miały prefiks katalogu, jeśli w bazie zapisane są same nazwy plików.
+     */
+    public function getGalleryAttribute($value)
+    {
+        // Upewnij się, że mamy tablicę
+        $items = $value;
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $items = is_array($decoded) ? $decoded : [];
+        } elseif (!is_array($value)) {
+            $items = [];
+        }
+
+        return array_map(function ($path) {
+            if (empty($path)) {
+                return $path;
+            }
+            if (is_string($path) && str_contains($path, '/')) {
+                return $path;
+            }
+            return 'event-templates/gallery/' . ltrim((string) $path, '/');
+        }, $items);
     }
 
     /**
