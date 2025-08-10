@@ -26,13 +26,13 @@
                 </div>
                 <div>
                     <span class="font-medium text-gray-600 dark:text-gray-400">Status:</span>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                        @if($calculations['event_data']['status'] === 'draft') bg-gray-100 text-gray-800
-                        @elseif($calculations['event_data']['status'] === 'confirmed') bg-green-100 text-green-800
-                        @elseif($calculations['event_data']['status'] === 'in_progress') bg-yellow-100 text-yellow-800
-                        @elseif($calculations['event_data']['status'] === 'completed') bg-blue-100 text-blue-800
-                        @elseif($calculations['event_data']['status'] === 'cancelled') bg-red-100 text-red-800
-                        @else bg-gray-100 text-gray-800 @endif">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                        @if($calculations['event_data']['status'] === 'draft') bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200
+                        @elseif($calculations['event_data']['status'] === 'confirmed') bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+                        @elseif($calculations['event_data']['status'] === 'in_progress') bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300
+                        @elseif($calculations['event_data']['status'] === 'completed') bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300
+                        @elseif($calculations['event_data']['status'] === 'cancelled') bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300
+                        @else bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 @endif">
                         {{ match($calculations['event_data']['status'] ?? '') {
                             'draft' => 'Szkic',
                             'confirmed' => 'Potwierdzona',
@@ -176,13 +176,13 @@
                                                     <span class="text-gray-600 dark:text-gray-400">Kolejność: {{ $point->order }}</span>
                                                     <span class="text-gray-600 dark:text-gray-400">Ilość: {{ $point->quantity }}</span>
                                                     @if($point->include_in_program)
-                                                        <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Program</span>
+                                                        <span class="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded">Program</span>
                                                     @endif
                                                     @if($point->include_in_calculation)
-                                                        <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded">Kalkulacja</span>
+                                                        <span class="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded">Kalkulacja</span>
                                                     @endif
                                                     @if(!$point->active)
-                                                        <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded">Nieaktywny</span>
+                                                        <span class="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 px-2 py-0.5 rounded">Nieaktywny</span>
                                                     @endif
                                                 </div>
                                                 @if($point->notes)
@@ -239,13 +239,13 @@
                                     <td class="px-4 py-3 border-b text-center">
                                         <div class="flex flex-wrap gap-1 justify-center">
                                             @if($point->include_in_program)
-                                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Program</span>
+                                                <span class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-1 rounded">Program</span>
                                             @endif
                                             @if($point->include_in_calculation)
-                                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Kalkulacja</span>
+                                                <span class="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded">Kalkulacja</span>
                                             @endif
                                             @if(!$point->active)
-                                                <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Nieaktywny</span>
+                                                <span class="text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 px-2 py-1 rounded">Nieaktywny</span>
                                             @endif
                                         </div>
                                     </td>

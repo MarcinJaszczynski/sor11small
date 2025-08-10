@@ -125,7 +125,7 @@
                                     <x-heroicon-o-clipboard-document-list class="h-4 w-4 mr-2 text-orange-500" />
                                     Ostatnie zadania
                                 </h4>
-                                <div class="space-y-2">
+                                        <div class="space-y-2">
                                     @foreach($recentTasks as $task)
                                         <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors">
                                             <div class="flex-1 min-w-0">
@@ -156,7 +156,7 @@
                                 </h4>
                                 <div class="space-y-2">
                                     @foreach($recentMessages as $message)
-                                        <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors">
+                                        <div class="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                             <div class="flex-1 min-w-0">
                                                 <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
                                                     {{ $message->user->name ?? 'Nieznany użytkownik' }}
@@ -176,11 +176,7 @@
                     </div>
                 </div>
             </div>
-        </div>
-<<<<<<< HEAD
-
-=======
->>>>>>> a992b356d2e98be8f4891f442e8b570ff0a9faa5
+    </div>
     </x-filament::section>
 </x-filament-widgets::widget>
 
