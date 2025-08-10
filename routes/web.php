@@ -6,13 +6,23 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\EventTemplate;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Models\Conversation;
-
 use App\Http\Controllers\EventCsvController;
 use App\Http\Controllers\EventPriceDescriptionController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// === FRONTEND ROUTES (dodane z mergingSOR) ===
+use App\Http\Controllers\Front\FrontController;
+
+Route::post('/send-email', [FrontController::class, 'sendEmail'])->name('send-email');
+Route::get('/', [FrontController::class, 'home'])->name('home');
+Route::get('/directory-packages', [FrontController::class, 'directorypackages'])->name('directory-packages');
+Route::get('/blog', [FrontController::class, 'blog'])->name('blog');
+Route::get('/blog/{slug}', [FrontController::class, 'blogPost'])->name('blog.post');
+Route::get('/packages', [FrontController::class, 'packages'])->name('packages');
+Route::get('/package/{slug}', [FrontController::class, 'package'])->name('package');
+Route::get('/insurance', [FrontController::class, 'insurance'])->name('insurance');
+Route::get('/documents', [FrontController::class, 'documents'])->name('documents');
+Route::get('/contact', [FrontController::class, 'contact'])->name('contact');
+
 
 // Import/eksport CSV dla Eventów
 Route::get('/events/export-csv', [EventCsvController::class, 'export'])->name('events.export.csv');
