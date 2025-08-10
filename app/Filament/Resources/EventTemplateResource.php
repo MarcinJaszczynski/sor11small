@@ -167,36 +167,76 @@ class EventTemplateResource extends Resource
                                     ->icon('heroicon-o-photo')
                                     ->modalHeading('Wybierz zdjęcie wyróżniające')
                                     ->form([
-                                        Select::make('folder')
-                                            ->label('Folder')
+                                        Select::make('folders')
+                                            ->label('Foldery')
+                                            ->multiple()
                                             ->native(false)
                                             ->options(function () {
-                                                $dirs = Media::images()->orderByDesc('created_at')->limit(1000)->pluck('path')
+                                                $dirs = Media::images()->pluck('path')
                                                     ->map(fn($p) => Str::before($p, '/'))
                                                     ->filter(fn($d) => !empty($d))
                                                     ->unique()
+                                                    ->sort()
                                                     ->values();
                                                 return $dirs->combine($dirs)->all();
                                             })
                                             ->placeholder('Wszystkie')
                                             ->live(),
+                                        // Ukryty input do paginacji siatki
+                                        Forms\Components\TextInput::make('grid_page')
+                                            ->default(1)
+                                            ->live()
+                                            ->extraAttributes(['id' => 'featured-grid-page'])
+                                            ->extraInputAttributes(['id' => 'featured-grid-page'])
+                                            ->dehydrated(false)
+                                            ->suffixIcon('heroicon-m-arrow-path'),
+                                        // Ukryty Select, nośnik wartości, sterowany przez grid (TomSelect)
                                         Select::make('media_id')
                                             ->label('Plik')
                                             ->searchable()
                                             ->preload()
-                                            ->options(function (Get $get) {
-                                                $q = Media::images()->orderByDesc('created_at')->limit(500);
-                                                if ($get('folder')) {
-                                                    $q->where('path', 'like', $get('folder') . '/%');
-                                                }
-                                                return $q->get()->pluck('filename', 'id');
+                                            ->options(function () {
+                                                // Opcje nie są istotne dla UX siatki, ale TomSelect wymaga listy; ograniczamy do 1k
+                                                return Media::images()->orderByDesc('created_at')->limit(1000)->get()->pluck('filename', 'id');
                                             })
-                                            ->live()
+                                            ->extraAttributes(['id' => 'featured-media-select', 'style' => 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;'])
                                             ->required(),
-                                        ViewComponent::make('filament.fields.media-preview')
-                                            ->viewData(fn(Get $get) => [
-                                                'url' => optional(Media::find($get('media_id')))?->url(),
-                                            ])
+                                        ViewComponent::make('filament.fields.media-grid-picker')
+                                            ->viewData(function (Get $get) {
+                                                $perPage = 20;
+                                                $page = (int) ($get('grid_page') ?: 1);
+                                                $folders = $get('folders');
+                                                $query = Media::images();
+                                                if (is_array($folders) && count($folders)) {
+                                                    $query->where(function ($q) use ($folders) {
+                                                        foreach ($folders as $f) {
+                                                            $q->orWhere('path', 'like', $f . '/%');
+                                                        }
+                                                    });
+                                                }
+                                                $total = (clone $query)->count();
+                                                $items = (clone $query)
+                                                    ->orderByDesc('created_at')
+                                                    ->skip(max(0, ($page - 1) * $perPage))
+                                                    ->take($perPage)
+                                                    ->get()
+                                                    ->map(fn($m) => [
+                                                        'id' => $m->id,
+                                                        'filename' => $m->filename,
+                                                        'url' => $m->url(),
+                                                    ])->all();
+                                                $selected = $get('media_id') ? [(int) $get('media_id')] : [];
+                                                return [
+                                                    'mode' => 'single',
+                                                    'selectId' => 'featured-media-select',
+                                                    'pageInputId' => 'featured-grid-page',
+                                                    'items' => $items,
+                                                    'selected' => $selected,
+                                                    'page' => $page,
+                                                    'perPage' => $perPage,
+                                                    'total' => $total,
+                                                ];
+                                            })
                                             ->columnSpanFull(),
                                     ])
                                     ->action(function (array $data, Set $set) {
@@ -236,37 +276,73 @@ class EventTemplateResource extends Resource
                                     ->icon('heroicon-o-rectangle-stack')
                                     ->modalHeading('Wybierz zdjęcia do galerii')
                                     ->form([
-                                        Select::make('folder')
-                                            ->label('Folder')
+                                        Select::make('folders')
+                                            ->label('Foldery')
+                                            ->multiple()
                                             ->native(false)
                                             ->options(function () {
-                                                $dirs = Media::images()->orderByDesc('created_at')->limit(1000)->pluck('path')
+                                                $dirs = Media::images()->pluck('path')
                                                     ->map(fn($p) => Str::before($p, '/'))
                                                     ->filter(fn($d) => !empty($d))
                                                     ->unique()
+                                                    ->sort()
                                                     ->values();
                                                 return $dirs->combine($dirs)->all();
                                             })
                                             ->placeholder('Wszystkie')
                                             ->live(),
+                                        Forms\Components\TextInput::make('grid_page')
+                                            ->default(1)
+                                            ->live()
+                                            ->extraAttributes(['id' => 'gallery-grid-page'])
+                                            ->extraInputAttributes(['id' => 'gallery-grid-page'])
+                                            ->dehydrated(false),
                                         Select::make('media_ids')
                                             ->label('Pliki')
                                             ->multiple()
                                             ->searchable()
                                             ->preload()
-                                            ->options(function (Get $get) {
-                                                $q = Media::images()->orderByDesc('created_at')->limit(500);
-                                                if ($get('folder')) {
-                                                    $q->where('path', 'like', $get('folder') . '/%');
-                                                }
-                                                return $q->get()->pluck('filename', 'id');
+                                            ->options(function () {
+                                                return Media::images()->orderByDesc('created_at')->limit(1000)->get()->pluck('filename', 'id');
                                             })
-                                            ->live()
+                                            ->extraAttributes(['id' => 'gallery-media-select', 'style' => 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;'])
                                             ->required(),
-                                        ViewComponent::make('filament.fields.media-multi-preview')
-                                            ->viewData(fn(Get $get) => [
-                                                'urls' => Media::whereIn('id', is_array($get('media_ids')) ? $get('media_ids') : [])->get()->map->url()->all(),
-                                            ])
+                                        ViewComponent::make('filament.fields.media-grid-picker')
+                                            ->viewData(function (Get $get) {
+                                                $perPage = 20;
+                                                $page = (int) ($get('grid_page') ?: 1);
+                                                $folders = $get('folders');
+                                                $query = Media::images();
+                                                if (is_array($folders) && count($folders)) {
+                                                    $query->where(function ($q) use ($folders) {
+                                                        foreach ($folders as $f) {
+                                                            $q->orWhere('path', 'like', $f . '/%');
+                                                        }
+                                                    });
+                                                }
+                                                $total = (clone $query)->count();
+                                                $items = (clone $query)
+                                                    ->orderByDesc('created_at')
+                                                    ->skip(max(0, ($page - 1) * $perPage))
+                                                    ->take($perPage)
+                                                    ->get()
+                                                    ->map(fn($m) => [
+                                                        'id' => $m->id,
+                                                        'filename' => $m->filename,
+                                                        'url' => $m->url(),
+                                                    ])->all();
+                                                $selected = is_array($get('media_ids')) ? array_map('intval', $get('media_ids')) : [];
+                                                return [
+                                                    'mode' => 'multi',
+                                                    'selectId' => 'gallery-media-select',
+                                                    'pageInputId' => 'gallery-grid-page',
+                                                    'items' => $items,
+                                                    'selected' => $selected,
+                                                    'page' => $page,
+                                                    'perPage' => $perPage,
+                                                    'total' => $total,
+                                                ];
+                                            })
                                             ->columnSpanFull(),
                                     ])
                                     ->action(function (array $data, Get $get, Set $set) {
