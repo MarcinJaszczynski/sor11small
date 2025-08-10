@@ -6,8 +6,13 @@ use App\Filament\Resources\EventTemplateResource\Pages;
 use App\Models\EventTemplate;
 use App\Models\HotelRoom;
 use App\Models\EventPriceDescription;
+use App\Models\Media;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Components\Actions as FormActions;
+use Filament\Forms\Components\Actions\Action as FormAction;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -155,6 +160,26 @@ class EventTemplateResource extends Resource
                                 ->preserveFilenames()
                                 ->nullable()
                                 ->default(fn($record) => is_string($record?->featured_image) ? $record->featured_image : null),
+                            FormActions::make([
+                                FormAction::make('choose_featured_from_media')
+                                    ->label('Wybierz z biblioteki')
+                                    ->icon('heroicon-o-photo')
+                                    ->modalHeading('Wybierz zdjęcie wyróżniające')
+                                    ->form([
+                                        Forms\Components\Select::make('media_id')
+                                            ->label('Plik')
+                                            ->searchable()
+                                            ->preload()
+                                            ->options(fn() => Media::images()->orderByDesc('created_at')->limit(500)->get()->pluck('filename', 'id'))
+                                            ->required(),
+                                    ])
+                                    ->action(function (array $data, Set $set) {
+                                        $media = Media::find($data['media_id'] ?? null);
+                                        if ($media) {
+                                            $set('featured_image', $media->path);
+                                        }
+                                    }),
+                            ])->columnSpan(1),
                             Forms\Components\FileUpload::make('gallery')
                                 ->label('Zdjęcia do galerii')
                                 ->hint('Możesz dodać do 10 zdjęć uzupełniających. Ułatwiają prezentację imprezy.')
@@ -179,6 +204,30 @@ class EventTemplateResource extends Resource
                                 ->preserveFilenames()
                                 ->live()
                                 ->default(fn($record) => $record?->gallery ?? []),
+                            FormActions::make([
+                                FormAction::make('choose_gallery_from_media')
+                                    ->label('Dodaj z biblioteki')
+                                    ->icon('heroicon-o-rectangle-stack')
+                                    ->modalHeading('Wybierz zdjęcia do galerii')
+                                    ->form([
+                                        Forms\Components\Select::make('media_ids')
+                                            ->label('Pliki')
+                                            ->multiple()
+                                            ->searchable()
+                                            ->preload()
+                                            ->options(fn() => Media::images()->orderByDesc('created_at')->limit(500)->get()->pluck('filename', 'id'))
+                                            ->required(),
+                                    ])
+                                    ->action(function (array $data, Get $get, Set $set) {
+                                        $ids = $data['media_ids'] ?? [];
+                                        if (!is_array($ids)) { $ids = []; }
+                                        $paths = Media::whereIn('id', $ids)->pluck('path')->all();
+                                        $current = $get('gallery') ?? [];
+                                        if (!is_array($current)) { $current = []; }
+                                        $new = array_values(array_unique(array_merge($current, $paths)));
+                                        $set('gallery', $new);
+                                    }),
+                            ])->columnSpan(1),
                         ]),
                 ]),
 
