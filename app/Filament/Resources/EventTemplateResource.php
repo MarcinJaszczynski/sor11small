@@ -190,17 +190,10 @@ class EventTemplateResource extends Resource
                                             ->extraInputAttributes(['id' => 'featured-grid-page'])
                                             ->dehydrated(false)
                                             ->suffixIcon('heroicon-m-arrow-path'),
-                                        // Ukryty Select, nośnik wartości, sterowany przez grid (TomSelect)
-                                        Select::make('media_id')
-                                            ->label('Plik')
-                                            ->searchable()
-                                            ->preload()
-                                            ->options(function () {
-                                                // Opcje nie są istotne dla UX siatki, ale TomSelect wymaga listy; ograniczamy do 1k
-                                                return Media::images()->orderByDesc('created_at')->limit(1000)->get()->pluck('filename', 'id');
-                                            })
-                                            ->extraAttributes(['id' => 'featured-media-select', 'style' => 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;'])
-                                            ->required(),
+                                        // Ukryty input – nośnik wartości, sterowany przez grid
+                                        Forms\Components\Hidden::make('media_id')
+                                            ->required()
+                                            ->extraAttributes(['id' => 'featured-media-input']),
                                         ViewComponent::make('filament.fields.media-grid-picker')
                                             ->viewData(function (Get $get) {
                                                 $perPage = 20;
@@ -228,7 +221,7 @@ class EventTemplateResource extends Resource
                                                 $selected = $get('media_id') ? [(int) $get('media_id')] : [];
                                                 return [
                                                     'mode' => 'single',
-                                                    'selectId' => 'featured-media-select',
+                                                    'selectId' => 'featured-media-input',
                                                     'pageInputId' => 'featured-grid-page',
                                                     'items' => $items,
                                                     'selected' => $selected,
@@ -297,16 +290,9 @@ class EventTemplateResource extends Resource
                                             ->extraAttributes(['id' => 'gallery-grid-page'])
                                             ->extraInputAttributes(['id' => 'gallery-grid-page'])
                                             ->dehydrated(false),
-                                        Select::make('media_ids')
-                                            ->label('Pliki')
-                                            ->multiple()
-                                            ->searchable()
-                                            ->preload()
-                                            ->options(function () {
-                                                return Media::images()->orderByDesc('created_at')->limit(1000)->get()->pluck('filename', 'id');
-                                            })
-                                            ->extraAttributes(['id' => 'gallery-media-select', 'style' => 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;'])
-                                            ->required(),
+                                        Forms\Components\Hidden::make('media_ids')
+                                            ->required()
+                                            ->extraAttributes(['id' => 'gallery-media-input']),
                                         ViewComponent::make('filament.fields.media-grid-picker')
                                             ->viewData(function (Get $get) {
                                                 $perPage = 20;
@@ -331,10 +317,11 @@ class EventTemplateResource extends Resource
                                                         'filename' => $m->filename,
                                                         'url' => $m->url(),
                                                     ])->all();
-                                                $selected = is_array($get('media_ids')) ? array_map('intval', $get('media_ids')) : [];
+                                                $raw = $get('media_ids');
+                                                $selected = is_array($raw) ? array_map('intval', $raw) : (json_decode((string) $raw, true) ?: []);
                                                 return [
                                                     'mode' => 'multi',
-                                                    'selectId' => 'gallery-media-select',
+                                                    'selectId' => 'gallery-media-input',
                                                     'pageInputId' => 'gallery-grid-page',
                                                     'items' => $items,
                                                     'selected' => $selected,
@@ -346,8 +333,8 @@ class EventTemplateResource extends Resource
                                             ->columnSpanFull(),
                                     ])
                                     ->action(function (array $data, Get $get, Set $set) {
-                                        $ids = $data['media_ids'] ?? [];
-                                        if (!is_array($ids)) { $ids = []; }
+                                        $raw = $data['media_ids'] ?? [];
+                                        $ids = is_array($raw) ? $raw : (json_decode((string) $raw, true) ?: []);
                                         $paths = Media::whereIn('id', $ids)->pluck('path')->all();
                                         $current = $get('gallery') ?? [];
                                         if (!is_array($current)) { $current = []; }

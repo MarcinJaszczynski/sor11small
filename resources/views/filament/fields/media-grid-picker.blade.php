@@ -5,31 +5,16 @@
         pageInputId: '{{ $pageInputId }}',
         selected: new Set(@json($selected ?? [])),
         getSelectEl() { return document.getElementById(this.selectId); },
-        getTs() { const el = this.getSelectEl(); return el ? el.tomselect : null; },
         setNative() {
             const el = this.getSelectEl();
             if (!el) return;
-            const values = Array.from(this.selected).map(String);
-            if (el.multiple) {
-                for (const opt of el.options) opt.selected = values.includes(opt.value);
-            } else {
-                el.value = values[0] ?? '';
-            }
-            el.dispatchEvent(new Event('change', { bubbles: true }));
+            const values = Array.from(this.selected);
+            el.value = this.mode === 'single' ? (values[0] ?? '') : JSON.stringify(values);
             el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
         },
         sync() {
-            const ts = this.getTs();
-            if (this.mode === 'single') {
-                const id = Array.from(this.selected)[0];
-                if (ts) {
-                    ts.clear(true);
-                    if (id !== undefined) ts.addItem(String(id), false);
-                }
-            } else if (ts) {
-                ts.setValue(Array.from(this.selected).map(String), false);
-            }
-            // zawsze aktualizuj natywny select (fallback dla walidacji)
+            // zawsze aktualizuj input ukryty
             this.setNative();
         },
         toggle(id) {

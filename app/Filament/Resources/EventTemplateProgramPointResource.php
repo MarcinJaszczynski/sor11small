@@ -145,15 +145,9 @@ class EventTemplateProgramPointResource extends Resource
                                         ->extraAttributes(['id' => 'pp-featured-grid-page'])
                                         ->extraInputAttributes(['id' => 'pp-featured-grid-page'])
                                         ->dehydrated(false),
-                                    Select::make('media_id')
-                                        ->label('Plik')
-                                        ->searchable()
-                                        ->preload()
-                                        ->options(function () {
-                                            return Media::images()->orderByDesc('created_at')->limit(1000)->get()->pluck('filename', 'id');
-                                        })
-                                        ->extraAttributes(['id' => 'pp-featured-media-select', 'style' => 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;'])
-                                        ->required(),
+                                    Forms\Components\Hidden::make('media_id')
+                                        ->required()
+                                        ->extraAttributes(['id' => 'pp-featured-media-input']),
                                     ViewComponent::make('filament.fields.media-grid-picker')
                                         ->viewData(function (Get $get) {
                                             $perPage = 20;
@@ -181,7 +175,7 @@ class EventTemplateProgramPointResource extends Resource
                                             $selected = $get('media_id') ? [(int) $get('media_id')] : [];
                                             return [
                                                 'mode' => 'single',
-                                                'selectId' => 'pp-featured-media-select',
+                                                'selectId' => 'pp-featured-media-input',
                                                 'pageInputId' => 'pp-featured-grid-page',
                                                 'items' => $items,
                                                 'selected' => $selected,
@@ -251,16 +245,9 @@ class EventTemplateProgramPointResource extends Resource
                                         ->extraAttributes(['id' => 'pp-gallery-grid-page'])
                                         ->extraInputAttributes(['id' => 'pp-gallery-grid-page'])
                                         ->dehydrated(false),
-                                    Select::make('media_ids')
-                                        ->label('Pliki')
-                                        ->multiple()
-                                        ->searchable()
-                                        ->preload()
-                                        ->options(function () {
-                                            return Media::images()->orderByDesc('created_at')->limit(1000)->get()->pluck('filename', 'id');
-                                        })
-                                        ->extraAttributes(['id' => 'pp-gallery-media-select', 'style' => 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0;'])
-                                        ->required(),
+                                    Forms\Components\Hidden::make('media_ids')
+                                        ->required()
+                                        ->extraAttributes(['id' => 'pp-gallery-media-input']),
                                     ViewComponent::make('filament.fields.media-grid-picker')
                                         ->viewData(function (Get $get) {
                                             $perPage = 20;
@@ -285,10 +272,11 @@ class EventTemplateProgramPointResource extends Resource
                                                     'filename' => $m->filename,
                                                     'url' => $m->url(),
                                                 ])->all();
-                                            $selected = is_array($get('media_ids')) ? array_map('intval', $get('media_ids')) : [];
+                                            $raw = $get('media_ids');
+                                            $selected = is_array($raw) ? array_map('intval', $raw) : (json_decode((string) $raw, true) ?: []);
                                             return [
                                                 'mode' => 'multi',
-                                                'selectId' => 'pp-gallery-media-select',
+                                                'selectId' => 'pp-gallery-media-input',
                                                 'pageInputId' => 'pp-gallery-grid-page',
                                                 'items' => $items,
                                                 'selected' => $selected,
@@ -300,8 +288,8 @@ class EventTemplateProgramPointResource extends Resource
                                         ->columnSpanFull(),
                                 ])
                                 ->action(function (array $data, Get $get, Set $set) {
-                                    $ids = $data['media_ids'] ?? [];
-                                    if (!is_array($ids)) { $ids = []; }
+                                    $raw = $data['media_ids'] ?? [];
+                                    $ids = is_array($raw) ? $raw : (json_decode((string) $raw, true) ?: []);
                                     $paths = Media::whereIn('id', $ids)->pluck('path')->all();
                                     $current = $get('gallery_images') ?? [];
                                     if (!is_array($current)) { $current = []; }
