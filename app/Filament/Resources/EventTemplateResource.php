@@ -18,6 +18,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
 use Filament\Forms\Components\View as ViewComponent;
+use Filament\Forms\Components\Select;
 
 /**
  * Resource Filament dla modelu EventTemplate.
@@ -166,12 +167,37 @@ class EventTemplateResource extends Resource
                                     ->icon('heroicon-o-photo')
                                     ->modalHeading('Wybierz zdjęcie wyróżniające')
                                     ->form([
-                                        Forms\Components\Select::make('media_id')
+                                        Select::make('folder')
+                                            ->label('Folder')
+                                            ->native(false)
+                                            ->options(function () {
+                                                $dirs = Media::images()->orderByDesc('created_at')->limit(1000)->pluck('path')
+                                                    ->map(fn($p) => Str::before($p, '/'))
+                                                    ->filter(fn($d) => !empty($d))
+                                                    ->unique()
+                                                    ->values();
+                                                return $dirs->combine($dirs)->all();
+                                            })
+                                            ->placeholder('Wszystkie')
+                                            ->live(),
+                                        Select::make('media_id')
                                             ->label('Plik')
                                             ->searchable()
                                             ->preload()
-                                            ->options(fn() => Media::images()->orderByDesc('created_at')->limit(500)->get()->pluck('filename', 'id'))
+                                            ->options(function (Get $get) {
+                                                $q = Media::images()->orderByDesc('created_at')->limit(500);
+                                                if ($get('folder')) {
+                                                    $q->where('path', 'like', $get('folder') . '/%');
+                                                }
+                                                return $q->get()->pluck('filename', 'id');
+                                            })
+                                            ->live()
                                             ->required(),
+                                        ViewComponent::make('filament.fields.media-preview')
+                                            ->viewData(fn(Get $get) => [
+                                                'url' => optional(Media::find($get('media_id')))?->url(),
+                                            ])
+                                            ->columnSpanFull(),
                                     ])
                                     ->action(function (array $data, Set $set) {
                                         $media = Media::find($data['media_id'] ?? null);
@@ -210,13 +236,38 @@ class EventTemplateResource extends Resource
                                     ->icon('heroicon-o-rectangle-stack')
                                     ->modalHeading('Wybierz zdjęcia do galerii')
                                     ->form([
-                                        Forms\Components\Select::make('media_ids')
+                                        Select::make('folder')
+                                            ->label('Folder')
+                                            ->native(false)
+                                            ->options(function () {
+                                                $dirs = Media::images()->orderByDesc('created_at')->limit(1000)->pluck('path')
+                                                    ->map(fn($p) => Str::before($p, '/'))
+                                                    ->filter(fn($d) => !empty($d))
+                                                    ->unique()
+                                                    ->values();
+                                                return $dirs->combine($dirs)->all();
+                                            })
+                                            ->placeholder('Wszystkie')
+                                            ->live(),
+                                        Select::make('media_ids')
                                             ->label('Pliki')
                                             ->multiple()
                                             ->searchable()
                                             ->preload()
-                                            ->options(fn() => Media::images()->orderByDesc('created_at')->limit(500)->get()->pluck('filename', 'id'))
+                                            ->options(function (Get $get) {
+                                                $q = Media::images()->orderByDesc('created_at')->limit(500);
+                                                if ($get('folder')) {
+                                                    $q->where('path', 'like', $get('folder') . '/%');
+                                                }
+                                                return $q->get()->pluck('filename', 'id');
+                                            })
+                                            ->live()
                                             ->required(),
+                                        ViewComponent::make('filament.fields.media-multi-preview')
+                                            ->viewData(fn(Get $get) => [
+                                                'urls' => Media::whereIn('id', is_array($get('media_ids')) ? $get('media_ids') : [])->get()->map->url()->all(),
+                                            ])
+                                            ->columnSpanFull(),
                                     ])
                                     ->action(function (array $data, Get $get, Set $set) {
                                         $ids = $data['media_ids'] ?? [];
