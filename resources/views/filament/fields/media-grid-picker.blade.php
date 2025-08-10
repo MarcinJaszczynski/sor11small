@@ -4,17 +4,33 @@
         selectId: '{{ $selectId }}',
         pageInputId: '{{ $pageInputId }}',
         selected: new Set(@json($selected ?? [])),
-        getTs() { const el = document.getElementById(this.selectId); return el ? el.tomselect : null; },
+        getSelectEl() { return document.getElementById(this.selectId); },
+        getTs() { const el = this.getSelectEl(); return el ? el.tomselect : null; },
+        setNative() {
+            const el = this.getSelectEl();
+            if (!el) return;
+            const values = Array.from(this.selected).map(String);
+            if (el.multiple) {
+                for (const opt of el.options) opt.selected = values.includes(opt.value);
+            } else {
+                el.value = values[0] ?? '';
+            }
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        },
         sync() {
             const ts = this.getTs();
-            if (!ts) return;
             if (this.mode === 'single') {
                 const id = Array.from(this.selected)[0];
-                ts.clear(true);
-                if (id !== undefined) ts.addItem(String(id), false);
-            } else {
+                if (ts) {
+                    ts.clear(true);
+                    if (id !== undefined) ts.addItem(String(id), false);
+                }
+            } else if (ts) {
                 ts.setValue(Array.from(this.selected).map(String), false);
             }
+            // zawsze aktualizuj natywny select (fallback dla walidacji)
+            this.setNative();
         },
         toggle(id) {
             if (this.mode === 'single') {
@@ -31,7 +47,11 @@
             el.value = page;
             el.dispatchEvent(new Event('input', { bubbles: true }));
         },
-        init() { this.sync(); }
+        init() {
+            // spróbuj zsynchronizować po inicjalizacji i po krótkiej zwłoce (gdy TomSelect się zamontuje)
+            this.sync();
+            setTimeout(() => this.sync(), 0);
+        }
     }"
     x-init="mediaPicker.init()"
     class="space-y-3"
