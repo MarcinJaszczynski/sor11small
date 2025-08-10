@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class RecalculateAllEventTemplatePricesJob implements ShouldQueue
 {
@@ -60,6 +61,14 @@ class RecalculateAllEventTemplatePricesJob implements ShouldQueue
                     ->body("Szablony: {$totalTemplates}, Nowe rekordy: {$totalPricesCreated}, Razem rekordów po przeliczeniu: {$totalPricesAfter}, Błędów: {$errors}")
                     ->success()
                     ->sendToDatabase($user);
+
+                // Opcjonalnie: e-mail (jeśli user ma e-mail)
+                if (!empty($user->email)) {
+                    $summary = "Szablony: {$totalTemplates}\nNowe rekordy: {$totalPricesCreated}\nRazem rekordów po przeliczeniu: {$totalPricesAfter}\nBłędów: {$errors}";
+                    Mail::raw('Przeliczanie cen zakończone.\n' . $summary, function ($m) use ($user) {
+                        $m->to($user->email)->subject('Podsumowanie przeliczania cen');
+                    });
+                }
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to send completion notification: ' . $e->getMessage());

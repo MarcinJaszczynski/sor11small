@@ -5,6 +5,7 @@ namespace App\Filament\Resources\EventTemplateResource\Pages;
 use App\Filament\Resources\EventTemplateResource;
 use App\Models\EventTemplate;
 use Filament\Actions;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
 use Filament\Tables\Actions\Action as TableAction;
@@ -19,6 +20,34 @@ class ListEventTemplates extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
+            Action::make('removeDuplicates')
+                ->label('Usuń duplikaty cen')
+                ->icon('heroicon-o-scissors')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->action(function () {
+                    // Globalna deduplikacja
+                    $duplicateGroups = \App\Models\EventTemplatePricePerPerson::select('event_template_id', 'event_template_qty_id', 'currency_id', 'start_place_id')
+                        ->selectRaw('COUNT(*) as count')
+                        ->groupBy('event_template_id', 'event_template_qty_id', 'currency_id', 'start_place_id')
+                        ->having('count', '>', 1)
+                        ->get();
+                    $removed = 0;
+                    foreach ($duplicateGroups as $group) {
+                        $records = \App\Models\EventTemplatePricePerPerson::where([
+                            'event_template_id' => $group->event_template_id,
+                            'event_template_qty_id' => $group->event_template_qty_id,
+                            'currency_id' => $group->currency_id,
+                            'start_place_id' => $group->start_place_id,
+                        ])->orderByDesc('id')->get();
+                        for ($i = 1; $i < $records->count(); $i++) { $records[$i]->delete(); $removed++; }
+                    }
+                    \Filament\Notifications\Notification::make()
+                        ->title('Deduplikacja zakończona')
+                        ->body('Usunięto rekordów: ' . $removed)
+                        ->success()
+                        ->send();
+                }),
             Actions\Action::make('recalculateAllPrices')
                 ->label('Przelicz ceny dla wszystkich')
                 ->icon('heroicon-o-calculator')
