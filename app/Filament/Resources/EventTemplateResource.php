@@ -396,17 +396,37 @@ class EventTemplateResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function ($query) {
+                // Eager load for columns to avoid N+1
+                $query->with([
+                    'startingPlaceAvailabilities.startPlace',
+                    'pricesPerPerson.currency',
+                    'pricesPerPerson.eventTemplateQty',
+                    'tags',
+                    'eventTypes',
+                ]);
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nazwa')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('subtitle')
-                    ->label('Podtytuł')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: false),
-                Tables\Columns\TextColumn::make('slug')
-                    ->label('Slug')
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('duration_days')
+                    ->label('Długość (dni)')
+                    ->numeric()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
+
+                // Opcjonalne kolumny
+                Tables\Columns\TextColumn::make('notes')
+                    ->label('Uwagi')
+                    ->limit(80)
+                    ->toggleable(isToggledHiddenByDefault: false),
+                Tables\Columns\TextColumn::make('office_description')
+                    ->label('Opis dla biura')
+                    ->html()
+                    ->limit(80)
+                    ->toggleable(isToggledHiddenByDefault: false),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Status')
                     ->boolean()
@@ -418,35 +438,58 @@ class EventTemplateResource extends Resource
                     ->action(function ($record) {
                         $record->update(['is_active' => !$record->is_active]);
                     })
-                    ->tooltip(fn($record) => $record->is_active ? 'Kliknij, aby dezaktywować' : 'Kliknij, aby aktywować'),
-                Tables\Columns\TextColumn::make('duration_days')
-                    ->label('Długość imprezy (dni)')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('startPlace.name')
-                    ->label('Miejsce startowe')
-                    ->searchable()
-                    ->sortable()
-                    ->placeholder('Nie ustawiono')
+                    ->tooltip(fn($record) => $record->is_active ? 'Kliknij, aby dezaktywować' : 'Kliknij, aby aktywować')
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('available_start_places')
-                    ->label('Dostępne miejsca wyjazdów')
+                    ->label('Dostępne miejsca wyjazdu')
                     ->getStateUsing(function ($record) {
-                        return $record->startingPlaceAvailabilities()
+                        return $record->startingPlaceAvailabilities
                             ->where('available', true)
-                            ->with('startPlace')
-                            ->get()
                             ->pluck('startPlace.name')
                             ->filter()
                             ->join(', ');
                     })
                     ->placeholder('Brak dostępnych')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('markup.name')
-                    ->label('Narzut')
-                    ->searchable()
-                    ->sortable()
-                    ->placeholder('Domyślny')
+                Tables\Columns\TextColumn::make('min_price_for_selected_start')
+                    ->label('Min. cena (PLN)')
+                    ->getStateUsing(function ($record) {
+                        $filters = request()->get('tableFilters') ?? [];
+                        $startId = null;
+                        if (isset($filters['start_place']['value'])) {
+                            $startId = (int) ($filters['start_place']['value']);
+                        } elseif (isset($filters['start_place']['values']) && is_array($filters['start_place']['values'])) {
+                            $startId = (int) ($filters['start_place']['values'][0] ?? 0);
+                        }
+                        if (!$startId) {
+                            return '—';
+                        }
+                        $availableIds = $record->startingPlaceAvailabilities
+                            ->where('available', true)
+                            ->pluck('start_place_id')
+                            ->map(fn($v) => (int) $v);
+                        if (!$availableIds->contains($startId)) {
+                            return '—';
+                        }
+                        $pln = function ($p) {
+                            $code = strtoupper((string) ($p->currency->code ?? ''));
+                            $name = strtolower((string) ($p->currency->name ?? ''));
+                            return $code === 'PLN' || str_contains($name, 'złoty');
+                        };
+                        $prices = $record->pricesPerPerson
+                            ->filter(fn($p) => $pln($p) && (int) $p->start_place_id === $startId && (float) $p->price_per_person > 0)
+                            ->groupBy('event_template_qty_id')
+                            ->map(fn($g) => $g->sortByDesc('id')->first());
+                        if ($prices->isEmpty()) {
+                            return '—';
+                        }
+                        $min = $prices->min('price_per_person');
+                        if ($min === null) {
+                            return '—';
+                        }
+                        $rounded = ceil(((float) $min) / 5) * 5;
+                        return number_format($rounded, 0, ',', ' ');
+                    })
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Utworzono')
@@ -464,6 +507,47 @@ class EventTemplateResource extends Resource
                     ->label('Tylko aktywne')
                     ->query(fn($query) => $query->where('is_active', true))
                     ->default(),
+                Tables\Filters\SelectFilter::make('start_place')
+                    ->label('Możliwe miejsce wyjazdu')
+                    ->options(fn() => \App\Models\Place::orderBy('name')->pluck('name', 'id')->all())
+                    ->searchable()
+                    ->native(false)
+                    ->query(function ($query, $data) {
+                        $id = $data['value'] ?? null;
+                        if ($id) {
+                            $query->whereHas('startingPlaceAvailabilities', function ($q) use ($id) {
+                                $q->where('available', true)->where('start_place_id', (int) $id);
+                            });
+                        }
+                    }),
+                Tables\Filters\SelectFilter::make('event_types')
+                    ->label('Rodzaj wycieczki')
+                    ->relationship('eventTypes', 'name')
+                    ->multiple()
+                    ->preload()
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('tags')
+                    ->label('Tagi')
+                    ->relationship('tags', 'name')
+                    ->multiple()
+                    ->preload()
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('duration_days')
+                    ->label('Długość wycieczki (dni)')
+                    ->options(function () {
+                        $values = EventTemplate::query()->select('duration_days')->distinct()->orderBy('duration_days')->pluck('duration_days')->all();
+                        $opts = [];
+                        foreach ($values as $v) { $opts[(string)$v] = (string)$v; }
+                        return $opts;
+                    })
+                    ->native(false)
+                    ->searchable()
+                    ->query(function ($query, $data) {
+                        $val = $data['value'] ?? null;
+                        if ($val !== null && $val !== '') {
+                            $query->where('duration_days', (int) $val);
+                        }
+                    }),
                 Tables\Filters\TrashedFilter::make()
                     ->label('Kosz'),
             ])
